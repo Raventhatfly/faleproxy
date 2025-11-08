@@ -37,6 +37,14 @@ describe('Integration Tests', () => {
     nock.enableNetConnect();
   });
 
+  test('Should serve the home page', async () => {
+    const response = await request(app)
+      .get('/')
+      .expect(200);
+    
+    expect(response.text).toContain('html');
+  });
+
   test('Should replace Yale with Fale in fetched content', async () => {
     // Setup mock for example.com
     nock('https://example.com')
