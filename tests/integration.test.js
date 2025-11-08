@@ -1,42 +1,32 @@
-const axios = require('axios');
+/**
+ * @jest-environment node
+ */
+
+const request = require('supertest');
 const cheerio = require('cheerio');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-const execAsync = promisify(exec);
 const { sampleHtmlWithYale } = require('./test-utils');
 const nock = require('nock');
 
-// Set a different port for testing to avoid conflict with the main app
-const TEST_PORT = 3099;
-let server;
+// We need to require the app after setting up nock
+let app;
 
 describe('Integration Tests', () => {
-  // Modify the app to use a test port
-  beforeAll(async () => {
+  beforeAll(() => {
     // Mock external HTTP requests
     nock.disableNetConnect();
     nock.enableNetConnect('127.0.0.1');
     
-    // Create a temporary test app file
-    await execAsync('cp app.js app.test.js');
-    await execAsync(`sed -i '' 's/const PORT = 3001/const PORT = ${TEST_PORT}/' app.test.js`);
-    
-    // Start the test server
-    server = require('child_process').spawn('node', ['app.test.js'], {
-      detached: true,
-      stdio: 'ignore'
-    });
-    
-    // Give the server time to start
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }, 10000); // Increase timeout for server startup
+    // Load the Express app (without starting the server)
+    app = require('../app');
+  });
 
-  afterAll(async () => {
-    // Kill the test server and clean up
-    if (server && server.pid) {
-      process.kill(-server.pid);
-    }
-    await execAsync('rm app.test.js');
+  beforeEach(() => {
+    // Clean up any pending mocks before each test
+    nock.cleanAll();
+  });
+
+  afterAll(() => {
+    // Clean up nock
     nock.cleanAll();
     nock.enableNetConnect();
   });
@@ -47,24 +37,29 @@ describe('Integration Tests', () => {
       .get('/')
       .reply(200, sampleHtmlWithYale);
     
-    // Make a request to our proxy app
-    const response = await axios.post(`http://localhost:${TEST_PORT}/fetch`, {
-      url: 'https://example.com/'
-    });
+    // Make a request to our proxy app using supertest
+    const response = await request(app)
+      .post('/fetch')
+      .send({ url: 'https://example.com/' })
+      .expect(200);
     
-    expect(response.status).toBe(200);
-    expect(response.data.success).toBe(true);
+    const data = response.body;
+    expect(data.success).toBe(true);
     
     // Verify Yale has been replaced with Fale in text
-    const $ = cheerio.load(response.data.content);
-    expect($('title').text()).toBe('Fale University Test Page');
-    expect($('h1').text()).toBe('Welcome to Fale University');
-    expect($('p').first().text()).toContain('Fale University is a private');
+    const $ = cheerio.load(data.content);
+    const titleText = $('title').text();
+    const h1Text = $('h1').text();
+    const pText = $('p').first().text();
+    const firstLinkText = $('a').first().text();
+    
+    expect(titleText).toBe('Fale University Test Page');
+    expect(h1Text).toBe('Welcome to Fale University');
+    expect(pText).toContain('Fale University is a private');
     
     // Verify URLs remain unchanged
-    const links = $('a');
     let hasYaleUrl = false;
-    links.each((i, link) => {
+    $('a').each((i, link) => {
       const href = $(link).attr('href');
       if (href && href.includes('yale.edu')) {
         hasYaleUrl = true;
@@ -73,29 +68,22 @@ describe('Integration Tests', () => {
     expect(hasYaleUrl).toBe(true);
     
     // Verify link text is changed
-    expect($('a').first().text()).toBe('About Fale');
-  }, 10000); // Increase timeout for this test
+    expect(firstLinkText).toBe('About Fale');
+  });
 
   test('Should handle invalid URLs', async () => {
-    try {
-      await axios.post(`http://localhost:${TEST_PORT}/fetch`, {
-        url: 'not-a-valid-url'
-      });
-      // Should not reach here
-      expect(true).toBe(false);
-    } catch (error) {
-      expect(error.response.status).toBe(500);
-    }
+    await request(app)
+      .post('/fetch')
+      .send({ url: 'not-a-valid-url' })
+      .expect(500);
   });
 
   test('Should handle missing URL parameter', async () => {
-    try {
-      await axios.post(`http://localhost:${TEST_PORT}/fetch`, {});
-      // Should not reach here
-      expect(true).toBe(false);
-    } catch (error) {
-      expect(error.response.status).toBe(400);
-      expect(error.response.data.error).toBe('URL is required');
-    }
+    const response = await request(app)
+      .post('/fetch')
+      .send({})
+      .expect(400);
+    
+    expect(response.body.error).toBe('URL is required');
   });
 });

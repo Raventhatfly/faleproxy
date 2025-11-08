@@ -6,20 +6,34 @@ describe('Yale to Fale replacement logic', () => {
   test('should replace Yale with Fale in text content', () => {
     const $ = cheerio.load(sampleHtmlWithYale);
     
+    // Helper function to replace Yale with Fale while preserving case
+    function replaceYalePreserveCase(text) {
+      return text.replace(/Yale/gi, (match) => {
+        if (match === 'YALE') return 'FALE';
+        if (match === 'Yale') return 'Fale';
+        if (match === 'yale') return 'fale';
+        // Handle mixed case by preserving the pattern
+        return match.split('').map((char, i) => {
+          const faleChar = 'fale'[i];
+          return char === char.toUpperCase() ? faleChar.toUpperCase() : faleChar;
+        }).join('');
+      });
+    }
+    
     // Process text nodes in the body
     $('body *').contents().filter(function() {
       return this.nodeType === 3; // Text nodes only
     }).each(function() {
       // Replace text content but not in URLs or attributes
       const text = $(this).text();
-      const newText = text.replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
+      const newText = replaceYalePreserveCase(text);
       if (text !== newText) {
         $(this).replaceWith(newText);
       }
     });
     
     // Process title separately
-    const title = $('title').text().replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
+    const title = replaceYalePreserveCase($('title').text());
     $('title').text(title);
     
     const modifiedHtml = $.html();
@@ -57,19 +71,33 @@ describe('Yale to Fale replacement logic', () => {
       </head>
       <body>
         <h1>Hello World</h1>
-        <p>This is a test page with no Yale references.</p>
+        <p>This is a test page with no university references.</p>
       </body>
       </html>
     `;
     
     const $ = cheerio.load(htmlWithoutYale);
     
+    // Helper function to replace Yale with Fale while preserving case
+    function replaceYalePreserveCase(text) {
+      return text.replace(/Yale/gi, (match) => {
+        if (match === 'YALE') return 'FALE';
+        if (match === 'Yale') return 'Fale';
+        if (match === 'yale') return 'fale';
+        // Handle mixed case by preserving the pattern
+        return match.split('').map((char, i) => {
+          const faleChar = 'fale'[i];
+          return char === char.toUpperCase() ? faleChar.toUpperCase() : faleChar;
+        }).join('');
+      });
+    }
+    
     // Apply the same replacement logic
     $('body *').contents().filter(function() {
       return this.nodeType === 3;
     }).each(function() {
       const text = $(this).text();
-      const newText = text.replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
+      const newText = replaceYalePreserveCase(text);
       if (text !== newText) {
         $(this).replaceWith(newText);
       }
@@ -80,7 +108,7 @@ describe('Yale to Fale replacement logic', () => {
     // Content should remain the same
     expect(modifiedHtml).toContain('<title>Test Page</title>');
     expect(modifiedHtml).toContain('<h1>Hello World</h1>');
-    expect(modifiedHtml).toContain('<p>This is a test page with no Yale references.</p>');
+    expect(modifiedHtml).toContain('<p>This is a test page with no university references.</p>');
   });
 
   test('should handle case-insensitive replacements', () => {
@@ -90,11 +118,25 @@ describe('Yale to Fale replacement logic', () => {
     
     const $ = cheerio.load(mixedCaseHtml);
     
+    // Helper function to replace Yale with Fale while preserving case
+    function replaceYalePreserveCase(text) {
+      return text.replace(/Yale/gi, (match) => {
+        if (match === 'YALE') return 'FALE';
+        if (match === 'Yale') return 'Fale';
+        if (match === 'yale') return 'fale';
+        // Handle mixed case by preserving the pattern
+        return match.split('').map((char, i) => {
+          const faleChar = 'fale'[i];
+          return char === char.toUpperCase() ? faleChar.toUpperCase() : faleChar;
+        }).join('');
+      });
+    }
+    
     $('body *').contents().filter(function() {
       return this.nodeType === 3;
     }).each(function() {
       const text = $(this).text();
-      const newText = text.replace(/Yale/gi, 'Fale');
+      const newText = replaceYalePreserveCase(text);
       if (text !== newText) {
         $(this).replaceWith(newText);
       }
