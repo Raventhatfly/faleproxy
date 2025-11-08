@@ -100,4 +100,34 @@ describe('Integration Tests', () => {
     
     expect(response.body.error).toBe('URL is required');
   });
+
+  test('Should handle mixed case variations like YaLe', async () => {
+    const mixedCaseHtml = `
+      <html>
+        <head><title>YaLe Test</title></head>
+        <body>
+          <p>YaLe, yAlE, and YALe are all variations.</p>
+        </body>
+      </html>
+    `;
+    
+    nock('https://example.com')
+      .get('/mixed')
+      .reply(200, mixedCaseHtml);
+    
+    const response = await request(app)
+      .post('/fetch')
+      .send({ url: 'https://example.com/mixed' })
+      .expect(200);
+    
+    const $ = cheerio.load(response.body.content);
+    const titleText = $('title').text();
+    const pText = $('p').text();
+    
+    // Mixed case should be preserved
+    expect(titleText).toContain('FaLe');
+    expect(pText).toContain('FaLe');
+    expect(pText).toContain('fAlE');
+    expect(pText).toContain('FALe');
+  });
 });

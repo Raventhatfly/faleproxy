@@ -77,6 +77,7 @@ app.post('/fetch', async (req, res) => {
 });
 
 // Start the server only if this file is run directly (not required by tests)
+/* istanbul ignore next */
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Faleproxy server running at http://localhost:${PORT}`);
